@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace Voltaic.Serialization.Csv
 {
@@ -13,9 +14,11 @@ namespace Voltaic.Serialization.Csv
                 {
                     case (byte)'\n':
                     case (byte)'\r':
+                        remaining = remaining.Slice(i);
                         return CsvTokenType.EndLine;
                     case (byte)',':
                     case (byte)'\t':
+                        remaining = remaining.Slice(i);
                         return CsvTokenType.Delimiter;
                     default:
                         return CsvTokenType.None;
@@ -27,42 +30,38 @@ namespace Voltaic.Serialization.Csv
         public static bool Skip(ref ReadOnlySpan<byte> remaining, out ReadOnlySpan<byte> skipped)
         {
             skipped = default;
-            return false;
+            
+            var stack = new ResizableMemory<byte>(1);
+            var currentToken = CsvTokenType.None;
 
-            //var stack = new ResizableMemory<byte>(32);
-            //var currentToken = CsvTokenType.None;
+            int i = 0;
+            for (; i <= remaining.Length || currentToken != CsvTokenType.None;)
+            {
+                byte c = remaining[i];
+                Debug.Write((char)c);
+                switch (c)
+                {
+                    case (byte)' ': // Whitespace
+                    case (byte)'\n':
+                    case (byte)'\r':
+                    case (byte)'\t':
+                        i++;
+                        continue;
+                    case (byte)',':
+                        i++;
+                        stack.Pop();
+                        return false;
 
-            //int i = 0;
-            //for (; i <= remaining.Length || currentToken != CsvTokenType.None;)
-            //{
-            //    byte c = remaining[i];
-            //    switch (c)
-            //    {
-            //        case (byte)' ': // Whitespace
-            //        case (byte)'\n':
-            //        case (byte)'\r':
-            //        case (byte)'\t':
-            //            i++;
-            //            continue;
-            //        case (byte)',':
-            //            remaining = remaining.Slice(i);
-            //            return CsvTokenType.Delimiter;
+                    default:
+                        if (stack.Length < 1)
+                            stack.Push(c);
+                        return false;
+                }
+            }
 
-            //        default:
-            //            i++;
-            //            bool incomplete = true;
-            //            while (i < remaining.Length)
-            //            {
-            //                switch (remaining[i])
-            //                {
-            //                    case (byte)'\':
-            //                        i += 1;
-            //                        continue;
-            //                    case (byte)'"'
-            //                }
-            //            }
-            //    }
-            //}
+            skipped = remaining.Slice(0, i);
+            remaining = remaining.Slice(i);
+            return true;
         }
     }
 }

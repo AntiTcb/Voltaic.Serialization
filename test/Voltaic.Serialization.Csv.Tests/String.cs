@@ -9,10 +9,13 @@ namespace Voltaic.Serialization.Csv.Tests
     {
         public static IEnumerable<object[]> GetData()
         {
-            yield return Read("hello", "hello");
+            //yield return Read("hello", "hello");
+            yield return Read("hello,hello", "hello");
         }
-    [Theory]
-    [MemberData(nameof(GetData))]
-    public void String(TextTestData<string> data) => RunTest(data);
+
+        [Theory]
+        [MemberData(nameof(GetData))]
+        public void String(TextTestData<string> data) => RunQuoteTest(data);
+
     }
 }

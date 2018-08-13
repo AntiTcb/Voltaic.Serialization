@@ -1,6 +1,7 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
-using System.Text;
+using System.Runtime.InteropServices;
 using Voltaic.Serialization.Utf8.Tests;
 using Xunit;
 
@@ -32,8 +33,8 @@ namespace Voltaic.Serialization.Csv.Tests
                     //Assert.Throws<SerializationException>(() => _serializer.WriteUtf16String(test.Value, converter));
                     break;
                 case TestType.Read:
-                    Assert.Equal(test.Value, _serializer.ReadUtf16<T>(test.String, converter), _comparer);
-                    //Assert.True(TestSkip(test.String));
+                    //Assert.Equal(test.Value, _serializer.ReadUtf16<T>(test.String, converter), _comparer);
+                    Assert.True(TestSkip(test.String));
                     //Assert.Equal(test.Value, _serializer.ReadUtf16<T>(' ' + test.String, converter), _comparer);
                     //Assert.True(TestSkip(' ' + test.String));
                     //Assert.Equal(test.Value, _serializer.ReadUtf16<T>(test.String + ' ', converter), _comparer);
@@ -59,9 +60,74 @@ namespace Voltaic.Serialization.Csv.Tests
             }
         }
 
+        protected void RunQuoteTest(TextTestData<T> test, ValueConverter<T> converter = null, bool onlyReads = false)
+        {
+            switch (test.Type)
+            {
+                case TestType.FailRead:
+                    Assert.Throws<SerializationException>(() => _serializer.ReadUtf16<T>('"' + test.String + '"', converter));
+                    break;
+                //case TestType.FailWrite:
+                //    Assert.Throws<SerializationException>(() => _serializer.WriteUtf16String(test.Value, converter));
+                //    break;
+                case TestType.Read:
+                    Assert.Equal(test.Value, _serializer.ReadUtf16<T>('"' + test.String + '"', converter), _comparer);
+                    Assert.True(TestSkip('"' + test.String + '"'));
+                    Assert.Equal(test.Value, _serializer.ReadUtf16<T>(" \"" + test.String + "\" ", converter), _comparer);
+                    Assert.True(TestSkip(" \"" + test.String + "\" "));
+                    Assert.Throws<SerializationException>(() => _serializer.ReadUtf16<T>('"' + test.String, converter)); // Unclosed quote
+                    Assert.Throws<SerializationException>(() => _serializer.ReadUtf16<T>(" \"" + test.String + ' ', converter)); // Unclosed quote
+                    break;
+                //case TestType.ReadWrite:
+                //    Assert.Equal(test.Value, _serializer.ReadUtf16<T>('"' + test.String + '"', converter), _comparer);
+                //    Assert.True(TestSkip('"' + test.String + '"'));
+                //    Assert.Equal(test.Value, _serializer.ReadUtf16<T>(" \"" + test.String + "\" ", converter), _comparer);
+                //    Assert.True(TestSkip(" \"" + test.String + "\" "));
+                //    Assert.Throws<SerializationException>(() => _serializer.ReadUtf16<T>('"' + test.String, converter)); // Unclosed quote
+                //    Assert.Throws<SerializationException>(() => _serializer.ReadUtf16<T>(" \"" + test.String + ' ', converter)); // Unclosed quote
+                //    if (!onlyReads)
+                //        Assert.Equal('"' + test.String + '"', _serializer.WriteUtf16String(test.Value, converter));
+                //    break;
+                //case TestType.Write:
+                //    if (!onlyReads)
+                //        Assert.Equal('"' + test.String + '"', _serializer.WriteUtf16String(test.Value, converter));
+                    break;
+            }
+        }
+
         private static bool TestSkip(string str)
         {
-            throw new NotImplementedException();
+            var utf16Bytes = MemoryMarshal.AsBytes(str.AsSpan());
+            if (Encodings.Utf16.ToUtf8Length(utf16Bytes, out int count) != OperationStatus.Done)
+                throw new SerializationException("Failed to convert to UTF8");
+            var utf8Bytes = new byte[count];
+            if (Encodings.Utf16.ToUtf8(utf16Bytes, utf8Bytes.AsSpan(), out _, out _) != OperationStatus.Done)
+                throw new SerializationException("Failed to convert to UTF8");
+            var span = new ReadOnlySpan<byte>(utf8Bytes);
+            if (!CsvReader.Skip(ref span, out var skipped))
+                return false;
+
+            int whitespace = 0;
+            if (span.Length != 0)
+            {
+                for (int i = 0; i < span.Length; i++)
+                {
+                    switch (span[i])
+                    {
+                        case (byte)' ': // Whitespace
+                        case (byte)'\n':
+                        case (byte)'\r':
+                        case (byte)'\t':
+                            whitespace++;
+                            break;
+                        default:
+                            return false;
+                    }
+                }
+            }
+            if (skipped.Length != utf8Bytes.Length - whitespace)
+                return false;
+            return true;
         }
     }
 }
