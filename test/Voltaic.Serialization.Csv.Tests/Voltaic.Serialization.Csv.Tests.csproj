@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.7.0" />
+    <PackageReference Include="xunit" Version="2.3.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.3.1" />
+    <DotNetCliToolReference Include="dotnet-xunit" Version="2.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Voltaic.Serialization.Csv\Voltaic.Serialization.Csv.csproj" />
+    <ProjectReference Include="..\..\src\Voltaic.Serialization\Voltaic.Serialization.csproj" />
+    <ProjectReference Include="..\Voltaic.Serialization.Utf8.Tests\Voltaic.Serialization.Utf8.Tests.csproj" />
+  </ItemGroup>
+
+</Project>
